@@ -1,54 +1,32 @@
 #!/usr/bin/env bash
-# Nyan Code - Dev Workspace Session
-# Starts a development tmux session with nvim, opencode, dev server, and tests
+# Nyan Code dev workspace: nvim | opencode / npm run dev / npm test --watch
+# Pane ids come from tmux itself, so base-index / pane-base-index settings don't matter.
+set -euo pipefail
 
 SESSION="nyan-dev"
-LAYOUT="${LAYOUT:-even-horizontal}"
-
-start_session() {
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "Session $SESSION already exists. Attaching..."
-        tmux attach-session -t "$SESSION"
-        return
-    fi
-
-    tmux new-session -d -s "$SESSION" -n "nvim"
-    
-    # Pane 1: nvim (LazyVim)
-    tmux send-keys -t "$SESSION:0" "cd $(pwd)" C-m
-    tmux send-keys -t "$SESSION:0" "nvim" C-m
-    
-    # Pane 2: OpenCode AI
-    tmux split-window -h -t "$SESSION"
-    tmux send-keys -t "$SESSION:0.1" "opencode" C-m
-    
-    # Pane 3: Dev server
-    tmux split-window -v -t "$SESSION:0.1"
-    tmux send-keys -t "$SESSION:0.2" "npm run dev" C-m
-    
-    # Pane 4: Test runner
-    tmux select-pane -t "$SESSION:0.0"
-    tmux split-window -v -t "$SESSION:0.0"
-    tmux send-keys -t "$SESSION:0.3" "npm test --watch" C-m
-    
-    # Select layout
-    tmux select-layout -t "$SESSION" "$LAYOUT"
-    
-    echo "Session $SESSION started. Use 'tmux attach -t $SESSION' to attach."
-    tmux attach-session -t "$SESSION"
-}
-
-stop_session() {
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        tmux kill-session -t "$SESSION"
-        echo "Session $SESSION terminated."
-    else
-        echo "Session $SESSION does not exist."
-    fi
-}
+LAYOUT="${LAYOUT:-tiled}"
+DIR="$(pwd)"
 
 case "${1:-start}" in
-    start) start_session ;;
-    stop) stop_session ;;
-    *) echo "Usage: $0 {start|stop}" ;;
+    stop) tmux kill-session -t "$SESSION" 2>/dev/null && echo "stopped $SESSION"; exit ;;
+    start) ;;
+    *) echo "Usage: $0 {start|stop}"; exit 1 ;;
 esac
+
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    exec tmux attach-session -t "$SESSION"
+fi
+
+p0=$(tmux new-session -d -s "$SESSION" -n nvim -c "$DIR" -P -F '#{pane_id}')
+p1=$(tmux split-window -h -t "$p0" -c "$DIR" -P -F '#{pane_id}')
+p2=$(tmux split-window -v -t "$p1" -c "$DIR" -P -F '#{pane_id}')
+p3=$(tmux split-window -v -t "$p0" -c "$DIR" -P -F '#{pane_id}')
+
+tmux send-keys -t "$p0" "nvim" C-m
+tmux send-keys -t "$p1" "opencode" C-m
+tmux send-keys -t "$p2" "npm run dev" C-m
+tmux send-keys -t "$p3" "npm test -- --watch" C-m
+
+tmux select-layout -t "$SESSION" "$LAYOUT"
+tmux select-pane -t "$p0"
+exec tmux attach-session -t "$SESSION"

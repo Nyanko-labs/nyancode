@@ -1,47 +1,29 @@
 #!/usr/bin/env bash
-# Nyan Code - Debug Workspace Session
-# Starts a debugging tmux session with logs, terminal, and nvim
+# Nyan Code debug workspace: logs | terminal / nvim
+# Pane ids come from tmux itself, so base-index / pane-base-index settings don't matter.
+set -euo pipefail
 
 SESSION="nyan-debug"
-LAYOUT="${LAYOUT:-even-horizontal}"
-
-start_session() {
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        echo "Session $SESSION already exists. Attaching..."
-        tmux attach-session -t "$SESSION"
-        return
-    fi
-
-    tmux new-session -d -s "$SESSION" -n "logs"
-    
-    # Pane 1: Logs
-    tmux send-keys -t "$SESSION:0" "tail -f logs/*.log 2>/dev/null || echo 'No logs found'" C-m
-    
-    # Pane 2: Terminal
-    tmux split-window -h -t "$SESSION"
-    tmux send-keys -t "$SESSION:0.1" "cd $(pwd)" C-m
-    
-    # Pane 3: nvim
-    tmux split-window -v -t "$SESSION:0.1"
-    tmux send-keys -t "$SESSION:0.2" "nvim" C-m
-    
-    tmux select-layout -t "$SESSION" "$LAYOUT"
-    
-    echo "Session $SESSION started. Use 'tmux attach -t $SESSION' to attach."
-    tmux attach-session -t "$SESSION"
-}
-
-stop_session() {
-    if tmux has-session -t "$SESSION" 2>/dev/null; then
-        tmux kill-session -t "$SESSION"
-        echo "Session $SESSION terminated."
-    else
-        echo "Session $SESSION does not exist."
-    fi
-}
+LAYOUT="${LAYOUT:-tiled}"
+DIR="$(pwd)"
 
 case "${1:-start}" in
-    start) start_session ;;
-    stop) stop_session ;;
-    *) echo "Usage: $0 {start|stop}" ;;
+    stop) tmux kill-session -t "$SESSION" 2>/dev/null && echo "stopped $SESSION"; exit ;;
+    start) ;;
+    *) echo "Usage: $0 {start|stop}"; exit 1 ;;
 esac
+
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    exec tmux attach-session -t "$SESSION"
+fi
+
+p0=$(tmux new-session -d -s "$SESSION" -n logs -c "$DIR" -P -F '#{pane_id}')
+p1=$(tmux split-window -h -t "$p0" -c "$DIR" -P -F '#{pane_id}')
+p2=$(tmux split-window -v -t "$p1" -c "$DIR" -P -F '#{pane_id}')
+
+tmux send-keys -t "$p0" "tail -f logs/*.log 2>/dev/null || echo 'No logs found'" C-m
+tmux send-keys -t "$p2" "nvim" C-m
+
+tmux select-layout -t "$SESSION" "$LAYOUT"
+tmux select-pane -t "$p1"
+exec tmux attach-session -t "$SESSION"

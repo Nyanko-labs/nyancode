@@ -28,8 +28,13 @@ local function run(cmd, args, range)
   if range > 0 or vim.tbl_contains({ "refactor", "explain", "test", "fix" }, cmd) then
     text = selection_or_buffer(range)
   end
+  -- the CLI reads args OR stdin, so when both exist send everything on stdin
   local argv = { "nyan", cmd }
-  if args ~= "" then table.insert(argv, args) end
+  if args ~= "" and text ~= "" then
+    text = args .. "\n\n" .. text
+  elseif args ~= "" then
+    table.insert(argv, args)
+  end
   vim.notify("nyan " .. cmd .. " …")
   vim.system(argv, { stdin = text ~= "" and text or nil, text = true }, vim.schedule_wrap(function(r)
     if r.code ~= 0 then
