@@ -7,9 +7,9 @@ local function cmds()
   return vim.v.shell_error == 0 and out or {}
 end
 
-local function selection_or_buffer(range)
+local function selection_or_buffer(o)
   local s, e = 1, vim.api.nvim_buf_line_count(0)
-  if range > 0 then s, e = vim.fn.line("'<"), vim.fn.line("'>") end
+  if o.range > 0 then s, e = o.line1, o.line2 end
   return table.concat(vim.api.nvim_buf_get_lines(0, s - 1, e, false), "\n")
 end
 
@@ -23,10 +23,10 @@ local function open_result(title, lines)
   vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, nowait = true })
 end
 
-local function run(cmd, args, range)
+local function run(cmd, args, o)
   local text = ""
-  if range > 0 or vim.tbl_contains({ "refactor", "explain", "test", "fix" }, cmd) then
-    text = selection_or_buffer(range)
+  if o.range > 0 or vim.tbl_contains({ "refactor", "explain", "test", "fix" }, cmd) then
+    text = selection_or_buffer(o)
   end
   -- the CLI reads args OR stdin, so when both exist send everything on stdin
   local argv = { "nyan", cmd }
@@ -49,7 +49,7 @@ vim.api.nvim_create_user_command("Nyan", function(o)
   if cmd == "chat" then
     return vim.cmd("botright vsplit | terminal nyan chat")
   end
-  run(cmd, table.concat(o.fargs, " ", 2), o.range)
+  run(cmd, table.concat(o.fargs, " ", 2), o)
 end, {
   nargs = "+",
   range = true,
