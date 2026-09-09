@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: shellcheck
-        run: shellcheck -S error cli/nyan install.sh core/ai/ai.sh core/tmux/*.sh core/workflow/*.sh
+        run: shellcheck -S warning cli/nyan install.sh workflows/*.sh
       - name: nvim plugin loads
         run: |
           sudo apt-get install -y -qq neovim >/dev/null

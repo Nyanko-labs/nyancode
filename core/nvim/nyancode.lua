@@ -1,7 +1,11 @@
 -- Nyan Code <-> NyanVim bridge. Installed as ~/.config/nvim/lua/user/plugins/nyancode.lua
 -- (NyanVim's git-ignored user plugin dir, so :NyanUpdate never overwrites it).
 -- Adds :Nyan <cmd> and <leader>n* keymaps that call the `nyan` CLI.
-local cmds = { "ask", "refactor", "fix", "generate", "explain", "test", "review" }
+-- command names come from core/ai/commands/nyan-*.md via the CLI: one source of truth
+local function cmds()
+  local out = vim.fn.systemlist({ "nyan", "commands" })
+  return vim.v.shell_error == 0 and out or {}
+end
 
 local function selection_or_buffer(range)
   local s, e = 1, vim.api.nvim_buf_line_count(0)
@@ -44,7 +48,7 @@ vim.api.nvim_create_user_command("Nyan", function(o)
 end, {
   nargs = "+",
   range = true,
-  complete = function() return vim.list_extend({ "chat" }, cmds) end,
+  complete = function() return vim.list_extend({ "chat", "ask" }, cmds()) end,
   desc = "Nyan Code AI",
 })
 

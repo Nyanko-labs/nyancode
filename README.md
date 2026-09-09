@@ -13,7 +13,7 @@ Needs `git`, `tmux`, `nvim`, `opencode`. NyanVim is installed automatically if `
 
 ## AI commands
 
-Text comes from args, stdin, or `-f file`. Every command is an [opencode custom command](https://opencode.ai/docs/commands) in `core/ai/commands/`, so it also works inside the opencode TUI as `/nyan-<name>`.
+Text comes from args, stdin, or `-f file`. Every command is an [opencode custom command](https://opencode.ai/docs/commands) in `core/ai/commands/nyan-<name>.md`, so it also works inside the opencode TUI as `/nyan-<name>`. `nyan help` lists whatever is in that directory.
 
 | Command | What it does |
 |---|---|
@@ -39,7 +39,7 @@ nyan commit -a
 
 ## NyanVim
 
-`install.sh` links `core/nvim/nyancode.lua` into NyanVim's git-ignored `lua/user/plugins/`, so `:NyanUpdate` never touches it.
+`install.sh` links `core/nvim/nyancode.lua` into NyanVim's git-ignored `lua/user/plugins/`, so `:NyanUpdate` never touches it. `:Nyan <Tab>` completes from `nyan commands`.
 
 | Key | Command |
 |---|---|
@@ -53,29 +53,29 @@ nyan commit -a
 
 Results open in a markdown split, `q` closes.
 
-## Workspaces
+## Workflows
+
+A workflow is a shell script. `nyan run <name>` (or just `nyan <name>`) runs `~/.nyan-code/workflows/<name>.sh` if it exists, else `workflows/<name>.sh`.
 
 ```bash
-nyan dev           # nvim + opencode + npm run dev + npm test --watch
-nyan debug
-nyan list          # workflows in ./workflows and ~/.nyan-code/workflows
-nyan run <name>
+nyan dev           # tmux: nvim + opencode + npm run dev + npm test --watch
+nyan debug         # tmux: logs + terminal + nvim
+nyan list
 ```
 
 ## Layout
 
 ```
-cli/nyan                 CLI entry point
-core/ai/ai.sh            thin wrapper over `opencode run --command nyan-<cmd>`
-core/ai/commands/        nyan-*.md opencode command templates
+cli/nyan                 the whole CLI: AI commands, workflows, doctor
+core/ai/commands/        nyan-*.md opencode command templates (source of truth for AI commands)
 core/nvim/nyancode.lua   NyanVim bridge (:Nyan, <Space>n*)
-core/tmux/               tmux workspace scripts
-core/workflow/           YAML workflow runner
-workflows/               built-in workflows
+workflows/               dev.sh, debug.sh, add your own
 ```
 
-## Add a command
+## Add an AI command
 
-1. Create `core/ai/commands/nyan-<name>.md` with `description:` frontmatter. Use `$ARGUMENTS`, `` !`shell` `` and `@file` as in opencode commands.
-2. Add `<name>` to the AI case in `cli/nyan` and to `cmds` in `core/nvim/nyancode.lua`.
-3. Re-run `./install.sh` to link it.
+Create `core/ai/commands/nyan-<name>.md` with a `description:` frontmatter line. Use `$ARGUMENTS`, `` !`shell` `` and `@file` as in opencode commands. Re-run `./install.sh` to link it. That is the only step: the CLI, `nyan help`, and nvim completion read the directory.
+
+## Add a workflow
+
+Drop `<name>.sh` in `workflows/` (or `~/.nyan-code/workflows/` to override). `nyan <name>` runs it.

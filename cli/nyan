@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 # Nyan Code CLI: NyanVim + tmux + opencode in one command.
+#
+# AI commands are discovered from core/ai/commands/nyan-<name>.md (opencode
+# custom-command templates). Workflows are plain shell scripts in workflows/
+# or ~/.nyan-code/workflows/. Nothing else to register.
 set -euo pipefail
 
 NYAN_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
-TMUX_DIR="$NYAN_ROOT/core/tmux"
-AI="$NYAN_ROOT/core/ai/ai.sh"
-WORKFLOW="$NYAN_ROOT/core/workflow/execute.sh"
+COMMANDS="$NYAN_ROOT/core/ai/commands"
 NYAN_PORT="${NYAN_PORT:-4096}"
-NVIM_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+USER_WORKFLOWS="$HOME/.nyan-code/workflows"
+
+ai_commands() { for f in "$COMMANDS"/nyan-*.md; do n="$(basename "$f" .md)"; echo "${n#nyan-}"; done; }
+workflows()   { for f in "$USER_WORKFLOWS"/*.sh "$NYAN_ROOT"/workflows/*.sh; do [[ -f "$f" ]] && basename "$f" .sh; done | sort -u; }
 
 show_help() {
     cat <<H
@@ -15,51 +21,78 @@ Nyan Code - terminal AI development system (NyanVim + tmux + opencode)
 
 Usage: nyan <command> [args]
 
-AI (pipe text in, or pass it as args; -f file, -m provider/model, --json):
+AI (text from args, stdin, or -f file; -m provider/model, --json, -c continue):
     ask <text>       free-form prompt
-    refactor         refactor code, behaviour unchanged
-    fix              root-cause fix for an error
-    generate <desc>  generate code
-    explain          explain code
-    test             write tests
-    review           review uncommitted diff
-    commit           write commit message for staged changes (nyan commit -a to commit)
+H
+    for c in $(ai_commands); do
+        printf "    %-16s %s\n" "$c" "$(sed -n 's/^description: //p' "$COMMANDS/nyan-$c.md")"
+    done
+    cat <<H
+    commit -a        commit staged changes with the generated message
     chat             open opencode TUI
-    serve            start opencode server on :$NYAN_PORT (shared sessions)
+    serve            start opencode server on :$NYAN_PORT (CLI and nvim reuse it)
 
 Workspace:
-    dev | debug      tmux workspace
-    run <workflow>   run a workflow      list / workflow show <name>
-    nvim [args]      open NyanVim        nvim update | nvim install
+    run <workflow>   run workflows/<name>.sh   ($(workflows | tr '\n' ' '))
+    list             list workflows
+    nvim [args]      open NyanVim              nvim update | nvim install
     doctor           check dependencies
+    commands         print AI command names (used by nvim completion)
 
 Examples:
-    nyan ask "what does core/ai/ai.sh do"
     git diff | nyan review
     nyan explain -f src/app.ts
     nyan fix "TypeError: x is undefined" -f src/x.ts
-    nyan commit -a
+    nyan run dev
 H
 }
 
-case "${1:-help}" in
-    ask|refactor|fix|generate|explain|test|review)
-        exec "$AI" "$@" ;;
+# ai <template|ask> [opts] [text]  ->  opencode run
+ai() {
+    local cmd="$1"; shift
+    local opts=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--model) opts+=(--model "$2"); shift 2 ;;
+            -f|--file)  opts+=(--file "$2"); shift 2 ;;
+            --json)     opts+=(--format json); shift ;;
+            -c|--continue) opts+=(--continue); shift ;;
+            --) shift; break ;;
+            *) break ;;
+        esac
+    done
+    local input="$*"
+    [[ ! -t 0 ]] && input+="${input:+$'\n\n'}$(cat)"
+    command -v opencode >/dev/null || { echo "opencode not installed: https://opencode.ai" >&2; exit 1; }
+    if curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" 2>/dev/null; then
+        opts+=(--attach "http://127.0.0.1:$NYAN_PORT")
+    fi
+    if [[ "$cmd" == ask ]]; then
+        [[ -z "$input" ]] && { echo "nothing to ask" >&2; exit 1; }
+        exec opencode run "${opts[@]}" -- "$input"
+    fi
+    exec opencode run "${opts[@]}" --command "nyan-$cmd" -- "$input"
+}
+
+run_workflow() {
+    local f
+    for f in "$USER_WORKFLOWS/$1.sh" "$NYAN_ROOT/workflows/$1.sh"; do
+        [[ -f "$f" ]] && exec bash "$f" "${@:2}"
+    done
+    echo "workflow not found: $1 (have: $(workflows | tr '\n' ' '))" >&2; exit 1
+}
+
+cmd="${1:-help}"; shift || true
+case "$cmd" in
+    ask)      ai ask "$@" ;;
     commit)
-        shift
-        msg="$("$AI" commit)"
-        if [[ "${1:-}" == "-a" ]]; then git commit -F - <<<"$msg"; else echo "$msg"; fi ;;
-    chat)   shift; exec opencode "$@" ;;
-    serve)  shift; exec opencode serve --port "$NYAN_PORT" "$@" ;;
-    dev|debug)
-        exec "$TMUX_DIR/$1.sh" start ;;
-    run)    shift; exec "$WORKFLOW" run "$@" ;;
-    list)   exec "$WORKFLOW" list ;;
-    workflow)
-        shift; sub="${1:-show}"; [[ "$sub" == validate || "$sub" == show ]] && shift
-        exec "$WORKFLOW" "$sub" "$@" ;;
+        if [[ "${1:-}" == "-a" ]]; then git commit -F - <<<"$(ai commit)"; else ai commit; fi ;;
+    chat)     exec opencode "$@" ;;
+    serve)    exec opencode serve --port "$NYAN_PORT" "$@" ;;
+    run)      [[ $# -gt 0 ]] || { echo "usage: nyan run <workflow>" >&2; exit 1; }; run_workflow "$@" ;;
+    list)     workflows ;;
+    commands) ai_commands ;;
     nvim)
-        shift
         case "${1:-}" in
             install) exec bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nyanko-labs/NyanVim/main/install.sh)" ;;
             update)  exec nvim --headless "+NyanUpdate" "+qa" ;;
@@ -69,9 +102,12 @@ case "${1:-help}" in
         for d in tmux nvim opencode git curl; do
             command -v "$d" >/dev/null && echo "ok   $d" || echo "MISS $d"
         done
-        [[ -f "$NVIM_CONFIG/lua/nyanvim/init.lua" ]] && echo "ok   NyanVim ($NVIM_CONFIG)" || echo "MISS NyanVim: run 'nyan nvim install'"
-        [[ -e "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/commands/nyan-fix.md" ]] && echo "ok   opencode commands" || echo "MISS opencode commands: run install.sh"
+        [[ -f "$CFG/nvim/lua/nyanvim/init.lua" ]] && echo "ok   NyanVim ($CFG/nvim)" || echo "MISS NyanVim: run 'nyan nvim install'"
+        [[ -e "$CFG/opencode/commands/nyan-fix.md" ]] && echo "ok   opencode commands" || echo "MISS opencode commands: run install.sh"
         curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" && echo "ok   nyan serve on :$NYAN_PORT" || echo "info nyan serve not running (optional)" ;;
     help|--help|-h) show_help ;;
-    *) echo "Unknown command: $1" >&2; show_help; exit 1 ;;
+    *)
+        if [[ -f "$COMMANDS/nyan-$cmd.md" ]]; then ai "$cmd" "$@"
+        elif [[ -f "$USER_WORKFLOWS/$cmd.sh" || -f "$NYAN_ROOT/workflows/$cmd.sh" ]]; then run_workflow "$cmd" "$@"
+        else echo "Unknown command: $cmd" >&2; show_help; exit 1; fi ;;
 esac
