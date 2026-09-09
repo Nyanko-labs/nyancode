@@ -19,7 +19,8 @@ show_help() {
     cat <<H
 Nyan Code - terminal AI development system (NyanVim + tmux + opencode)
 
-Usage: nyan <command> [args]
+Usage: nyan [command] [args]
+    (no command)     open the Nyan TUI: opencode with the nyan agent and theme
 
 AI (text from args, stdin, or -f file; -m provider/model, --json, -c continue):
     ask <text>       free-form prompt
@@ -83,8 +84,9 @@ run_workflow() {
     echo "workflow not found: $1 (have: $(workflows | tr '\n' ' '))" >&2; exit 1
 }
 
-cmd="${1:-help}"; shift || true
+cmd="${1:-tui}"; shift || true
 case "$cmd" in
+    tui)      exec opencode --agent nyan "$@" ;;   # Nyan agent + nyan theme (set by install.sh)
     ask)      ai ask "$@" ;;
     commit)
         if [[ "${1:-}" == "-a" ]]; then git commit -F - <<<"$(ai commit)"; else ai commit; fi ;;
@@ -105,6 +107,7 @@ case "$cmd" in
         done
         [[ -f "$CFG/nvim/lua/nyanvim/init.lua" ]] && echo "ok   NyanVim ($CFG/nvim)" || echo "MISS NyanVim: run 'nyan nvim install'"
         [[ -e "$CFG/opencode/commands/nyan-fix.md" ]] && echo "ok   opencode commands" || echo "MISS opencode commands: run install.sh"
+        [[ -e "$CFG/opencode/agents/nyan.md" && -e "$CFG/opencode/themes/nyan.json" ]] && echo "ok   nyan agent + theme" || echo "MISS nyan agent/theme: run install.sh"
         curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" && echo "ok   nyan serve on :$NYAN_PORT" || echo "info nyan serve not running (optional)" ;;
     help|--help|-h) show_help ;;
     *)

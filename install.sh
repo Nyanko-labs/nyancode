@@ -40,6 +40,19 @@ install() {
     done
     log "opencode commands: $CFG/opencode/commands/nyan-*.md"
 
+    # 3b. nyan agent + theme; set theme only if the user has not chosen one
+    mkdir -p "$CFG/opencode/agents" "$CFG/opencode/themes"
+    ln -sf "$INSTALL_DIR/core/ai/agents/nyan.md" "$CFG/opencode/agents/nyan.md"
+    ln -sf "$INSTALL_DIR/core/ai/themes/nyan.json" "$CFG/opencode/themes/nyan.json"
+    local oc_cfg
+    for oc_cfg in "$CFG/opencode/opencode.jsonc" "$CFG/opencode/opencode.json"; do [[ -f "$oc_cfg" ]] && break; done
+    if [[ ! -f "$oc_cfg" ]]; then
+        printf '{\n  "$schema": "https://opencode.ai/config.json",\n  "theme": "nyan"\n}\n' > "$oc_cfg"
+    elif ! grep -q '"theme"' "$oc_cfg"; then
+        sed -i.bak '1s/{/{ "theme": "nyan",/' "$oc_cfg" && rm -f "$oc_cfg.bak"
+    fi
+    log "nyan agent + theme: $oc_cfg"
+
     # 4. NyanVim (+ bridge plugin in its git-ignored user dir)
     if [[ ! -f "$CFG/nvim/lua/nyanvim/init.lua" ]]; then
         log "NyanVim not found, installing"

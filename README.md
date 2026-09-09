@@ -11,6 +11,14 @@ nyan doctor
 
 Needs `git`, `tmux`, `nvim`, `opencode`. NyanVim is installed automatically if `~/.config/nvim` is not already NyanVim.
 
+## Nyan TUI
+
+```bash
+nyan            # opencode TUI with the Nyan agent and the Night City Mix theme
+```
+
+`nyan` with no arguments is the interactive mode. The agent (`core/ai/agents/nyan.md`) is a lazy senior dev: shortest diff that fixes the root cause. The theme (`core/ai/themes/nyan.json`) matches NyanVim's palette. Inside the TUI, `/nyan-review`, `/nyan-fix` and the other templates are available as slash commands, and Tab cycles agents.
+
 ## AI commands
 
 Text comes from args, stdin, or `-f file`. Every command is an [opencode custom command](https://opencode.ai/docs/commands) in `core/ai/commands/nyan-<name>.md`, so it also works inside the opencode TUI as `/nyan-<name>`. `nyan help` lists whatever is in that directory.
@@ -66,7 +74,9 @@ nyan list
 ## Layout
 
 ```
-cli/nyan                 the whole CLI: AI commands, workflows, doctor
+cli/nyan                 the whole CLI: TUI, AI commands, workflows, doctor
+core/ai/agents/nyan.md   the Nyan agent (system prompt) for the TUI
+core/ai/themes/nyan.json opencode TUI theme, NyanVim palette
 core/ai/commands/        nyan-*.md opencode command templates (source of truth for AI commands)
 core/nvim/nyancode.lua   NyanVim bridge (:Nyan, <Space>n*)
 workflows/               dev.sh, debug.sh, add your own
