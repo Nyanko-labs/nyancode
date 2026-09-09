@@ -11,6 +11,47 @@ COMMANDS="$NYAN_ROOT/core/ai/commands"
 NYAN_PORT="${NYAN_PORT:-4096}"
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 USER_WORKFLOWS="$HOME/.nyan-code/workflows"
+# nyan's own opencode config (ollama provider, default model); merged over ~/.config/opencode by opencode
+NYAN_OC="$HOME/.nyan-code/opencode.json"
+[[ -f "$NYAN_OC" ]] && export OPENCODE_CONFIG="$NYAN_OC"
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+
+# model aliases: claude|opus|sonnet|haiku|ollama[:tag] -> provider/model
+resolve_model() {
+    case "$1" in
+        claude|opus) echo "anthropic/claude-opus-5" ;;
+        sonnet)      echo "anthropic/claude-sonnet-5" ;;
+        haiku)       echo "anthropic/claude-haiku-4-5" ;;
+        ollama)      echo "ollama/$(ollama_models | head -1)" ;;
+        ollama:*)    echo "ollama/${1#ollama:}" ;;
+        *)           echo "$1" ;;
+    esac
+}
+ollama_models() { curl -sf -m 2 "$OLLAMA_URL/api/tags" | jq -r '.models[].name' 2>/dev/null; }
+
+# nyan ollama: (re)write the ollama provider block from the models ollama actually has
+setup_ollama() {
+    local models
+    models="$(ollama_models)"
+    [[ -n "$models" ]] || { echo "ollama not running at $OLLAMA_URL (start: ollama serve; pull: ollama pull qwen2.5-coder:7b)" >&2; exit 1; }
+    mkdir -p "$(dirname "$NYAN_OC")"
+    [[ -f "$NYAN_OC" ]] || echo '{}' > "$NYAN_OC"
+    jq --arg url "$OLLAMA_URL/v1" --argjson models "$(jq -Rn '[inputs] | map({key: ., value: {name: .}}) | from_entries' <<<"$models")" \
+        '.["$schema"] = "https://opencode.ai/config.json"
+         | .provider.ollama = {npm: "@ai-sdk/openai-compatible", name: "Ollama (local)", options: {baseURL: $url}, models: $models}' \
+        "$NYAN_OC" > "$NYAN_OC.tmp" && mv "$NYAN_OC.tmp" "$NYAN_OC"
+    echo "ollama models available in nyan:"; sed 's/^/  ollama\//' <<<"$models"
+    echo "use: nyan -m ollama | nyan ask -m ollama:<tag> ... | nyan model ollama"
+}
+
+set_model() {
+    local m; m="$(resolve_model "$1")"
+    mkdir -p "$(dirname "$NYAN_OC")"; [[ -f "$NYAN_OC" ]] || echo '{}' > "$NYAN_OC"
+    if [[ "$1" == default ]]; then jq 'del(.model)' "$NYAN_OC" > "$NYAN_OC.tmp"
+    else jq --arg m "$m" '.model = $m' "$NYAN_OC" > "$NYAN_OC.tmp"; fi
+    mv "$NYAN_OC.tmp" "$NYAN_OC"
+    echo "default model: $(jq -r '.model // "opencode default"' "$NYAN_OC")"
+}
 
 ai_commands() { for f in "$COMMANDS"/nyan-*.md; do n="$(basename "$f" .md)"; echo "${n#nyan-}"; done; }
 workflows()   { for f in "$USER_WORKFLOWS"/*.sh "$NYAN_ROOT"/workflows/*.sh; do [[ -f "$f" ]] && basename "$f" .sh; done | sort -u; }
@@ -33,6 +74,11 @@ H
     chat             open opencode TUI
     serve            start opencode server on :$NYAN_PORT (CLI and nvim reuse it)
 
+Models (-m works on every AI command and on the TUI: nyan -m ollama):
+    claude           log in to Anthropic (Claude Pro/Max or API key)
+    ollama           register local ollama models as a provider
+    model [name]     show or set the default model; aliases claude|opus sonnet haiku ollama ollama:<tag> default
+
 Workspace:
     run <workflow>   run workflows/<name>.sh   ($(workflows | tr '\n' ' '))
     list             list workflows
@@ -54,7 +100,7 @@ ai() {
     local opts=()
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            -m|--model) opts+=(--model "$2"); shift 2 ;;
+            -m|--model) opts+=(--model "$(resolve_model "$2")"); shift 2 ;;
             -f|--file)  opts+=(--file "$2"); shift 2 ;;
             --json)     opts+=(--format json); shift ;;
             -c|--continue) opts+=(--continue); shift ;;
@@ -87,6 +133,15 @@ run_workflow() {
 cmd="${1:-tui}"; shift || true
 case "$cmd" in
     tui)      exec opencode --agent nyan "$@" ;;   # Nyan agent + nyan theme (set by install.sh)
+    -m|--model) exec opencode --agent nyan --model "$(resolve_model "$1")" "${@:2}" ;;
+    ollama)   setup_ollama ;;
+    claude)   echo "Anthropic login (pick 'Anthropic' in the list; Claude Pro/Max or API key):"; exec opencode auth login ;;
+    model)
+        if [[ $# -gt 0 ]]; then set_model "$1"
+        else
+            echo "default: $(jq -r '.model // "opencode default"' "$NYAN_OC" 2>/dev/null || echo "opencode default")"
+            echo "aliases: claude|opus sonnet haiku ollama ollama:<tag>   (or any provider/model)"
+        fi ;;
     ask)      ai ask "$@" ;;
     commit)
         if [[ "${1:-}" == "-a" ]]; then git commit -F - <<<"$(ai commit)"; else ai commit; fi ;;
@@ -108,7 +163,12 @@ case "$cmd" in
         [[ -f "$CFG/nvim/lua/nyanvim/init.lua" ]] && echo "ok   NyanVim ($CFG/nvim)" || echo "MISS NyanVim: run 'nyan nvim install'"
         [[ -e "$CFG/opencode/commands/nyan-fix.md" ]] && echo "ok   opencode commands" || echo "MISS opencode commands: run install.sh"
         [[ -e "$CFG/opencode/agents/nyan.md" && -e "$CFG/opencode/themes/nyan.json" ]] && echo "ok   nyan agent + theme" || echo "MISS nyan agent/theme: run install.sh"
-        curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" && echo "ok   nyan serve on :$NYAN_PORT" || echo "info nyan serve not running (optional)" ;;
+        curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" && echo "ok   nyan serve on :$NYAN_PORT" || echo "info nyan serve not running (optional)"
+        opencode auth list 2>/dev/null | grep -qi anthropic && echo "ok   claude (anthropic login)" || echo "info claude: run 'nyan claude' to log in"
+        if m="$(ollama_models | head -1)" && [[ -n "$m" ]]; then
+            jq -e '.provider.ollama' "$NYAN_OC" >/dev/null 2>&1 && echo "ok   ollama ($m)" || echo "info ollama running, run 'nyan ollama' to register it"
+        else echo "info ollama not running (optional)"; fi
+        echo "info default model: $(jq -r '.model // "opencode default"' "$NYAN_OC" 2>/dev/null || echo "opencode default")" ;;
     help|--help|-h) show_help ;;
     *)
         if [[ -f "$COMMANDS/nyan-$cmd.md" ]]; then ai "$cmd" "$@"

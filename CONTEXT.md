@@ -10,4 +10,6 @@ Terms used in code, docs, and architecture reviews. Keep them exact.
 - **Nyan TUI**: `nyan` with no arguments, which is `opencode --agent nyan`. Interactive mode.
 - **Nyan agent**: `core/ai/agents/nyan.md`, the primary opencode agent the TUI starts with. Its prompt is the project's coding stance (lazy senior dev).
 - **Nyan theme**: `core/ai/themes/nyan.json`, the opencode TUI theme in NyanVim's Night City Mix palette. `install.sh` sets it as the opencode theme only if the user has not chosen one.
+- **nyan config**: `~/.nyan-code/opencode.json`, exported as `OPENCODE_CONFIG` by `cli/nyan`. Holds the ollama provider block and the default `model`. The user's `~/.config/opencode` is never edited for these.
+- **Model alias**: `claude|opus`, `sonnet`, `haiku`, `ollama`, `ollama:<tag>`, resolved by `resolve_model()` in `cli/nyan` to `provider/model`. Anything else passes through unchanged.
 - **nyan serve**: an `opencode serve` on `:4096`. When it is up, the adapter attaches to it so CLI and nvim share sessions.

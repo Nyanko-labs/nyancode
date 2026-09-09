@@ -19,6 +19,21 @@ nyan            # opencode TUI with the Nyan agent and the Night City Mix theme
 
 `nyan` with no arguments is the interactive mode. The agent (`core/ai/agents/nyan.md`) is a lazy senior dev: shortest diff that fixes the root cause. The theme (`core/ai/themes/nyan.json`) matches NyanVim's palette. Inside the TUI, `/nyan-review`, `/nyan-fix` and the other templates are available as slash commands, and Tab cycles agents.
 
+## Models: Claude and Ollama
+
+```bash
+nyan claude              # log in to Anthropic (Claude Pro/Max subscription or API key)
+nyan ollama              # register the models `ollama list` has as an opencode provider
+nyan model               # show default + aliases
+nyan model sonnet        # set default; claude|opus, sonnet, haiku, ollama, ollama:<tag>, default
+nyan -m ollama           # TUI on a local model
+nyan explain -m haiku -f src/app.ts
+```
+
+`-m` accepts an alias or any `provider/model`. Claude aliases map to `claude-opus-5`, `claude-sonnet-5`, `claude-haiku-4-5`. nyan keeps its provider and model settings in `~/.nyan-code/opencode.json`, passed to opencode as `OPENCODE_CONFIG`, so your own `~/.config/opencode` config is never edited. `install.sh` runs `nyan ollama` automatically when ollama is up.
+
+Ollama tip: a 7B model needs roughly 5 GB free RAM. On an 8 GB machine use `ollama pull qwen2.5-coder:1.5b` and raise `num_ctx` (16k or more) so tool calls work.
+
 ## AI commands
 
 Text comes from args, stdin, or `-f file`. Every command is an [opencode custom command](https://opencode.ai/docs/commands) in `core/ai/commands/nyan-<name>.md`, so it also works inside the opencode TUI as `/nyan-<name>`. `nyan help` lists whatever is in that directory.

@@ -63,6 +63,11 @@ install() {
     log "nvim bridge: $CFG/nvim/lua/user/plugins/nyancode.lua"
 
     mkdir -p "$HOME/.nyan-code/workflows"
+
+    # 5. local models: register whatever ollama has (skipped when ollama is not running)
+    if curl -sf -m 2 "${OLLAMA_URL:-http://localhost:11434}/api/tags" >/dev/null 2>&1; then
+        "$INSTALL_DIR/cli/nyan" ollama || true
+    fi
     case ":$PATH:" in *":$BIN:"*) ;; *) log "add to PATH: export PATH=\"$BIN:\$PATH\"" ;; esac
     log "done. try: nyan doctor"
 }
