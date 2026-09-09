@@ -1,194 +1,81 @@
-# INARI CODE 🦊
+# NYAN CODE 🐱
 
-> A modular, terminal-based AI development system integrating tmux, LazyVim, and OpenCode.
+> Terminal AI development system: [NyanVim](https://github.com/Nyanko-labs/NyanVim) + tmux + [opencode](https://opencode.ai), driven by one `nyan` command.
 
-## Concept
-
-INARI CODE provides a clean developer workflow with:
-- **Tmux workspaces** - Pre-configured tmux sessions for development, debugging, code review
-- **LazyVim integration** - AI-powered keymaps for code refactoring and fixes
-- **OpenCode AI** - Prompt-based code generation, refactoring, and bug fixes
-
-## Architecture
-
-```
-inari-code/
-├── cli/inari                      # CLI tool
-├── core/
-│   ├── tmux/                      # Workspace scripts
-│   │   ├── dev.sh                 # Development session
-│   │   ├── debug.sh               # Debug session
-│   │   ├── review.sh             # Code review session
-│   │   └── test.sh               # Test session
-│   ├── nvim/lua/plugins/         # LazyVim plugins
-│   │   └── ai-keymaps.lua        # AI keymaps
-│   └── ai/
-│       ├── ai.sh                  # AI wrapper
-│       └── prompts/               # Prompt templates
-├── workflows/                      # YAML workflows
-└── docs/
-    └── DEVELOPMENT.md             # 6-month plan
-```
-
-## Installation
+## Install
 
 ```bash
-git clone https://github.com/yourrepo/inari-code.git
-cd inari-code
-chmod +x install.sh
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/Nyanko-labs/nyancode/main/install.sh | bash
+nyan doctor
 ```
 
-Add to PATH:
-```bash
-echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-```
+Needs `git`, `tmux`, `nvim`, `opencode`. NyanVim is installed automatically if `~/.config/nvim` is not already NyanVim.
 
-## Quick Start
+## AI commands
 
-```bash
-inari dev          # Start development workspace
-inari status      # Show active sessions
-inari help        # Show help
-```
+Text comes from args, stdin, or `-f file`. Every command is an [opencode custom command](https://opencode.ai/docs/commands) in `core/ai/commands/`, so it also works inside the opencode TUI as `/nyan-<name>`.
 
-## Commands
+| Command | What it does |
+|---|---|
+| `nyan ask "<text>"` | free-form prompt |
+| `nyan refactor` | refactor, behaviour unchanged |
+| `nyan fix "<error>"` | root-cause fix |
+| `nyan generate "<desc>"` | generate code |
+| `nyan explain` | explain code (read-only agent) |
+| `nyan test` | write tests in the project's framework |
+| `nyan review` | review uncommitted diff (read-only agent) |
+| `nyan commit [-a]` | commit message for staged changes, `-a` commits |
+| `nyan chat` | opencode TUI |
+| `nyan serve` | opencode server on `:4096`; CLI and nvim reuse it when running |
 
-| Command | Description |
-|--------|-------------|
-| `inari dev` | Start dev workspace (nvim + opencode + npm run dev + test) |
-| `inari debug` | Start debug workspace (logs + terminal + nvim) |
-| `inari review` | Start code review (nvim + git log + opencode) |
-| `inari test` | Start test workspace (npm test + nvim) |
-| `inari status` | Show active sessions |
-| `inari config` | Show/set configuration |
-| `inari list` | List available workflows |
-
-### Configuration
+Flags: `-m provider/model`, `-f file` (repeatable), `--json`, `-c` continue last session.
 
 ```bash
-# Set project directory
-inari config project /path/to/project
-
-# Show current config
-inari config
+git diff | nyan review
+nyan explain -f src/app.ts
+echo "$ERR" | nyan fix -f src/x.ts
+nyan commit -a
 ```
 
-## Tmux Layouts
+## NyanVim
 
-### Dev Session
-```
-┌─────────────┬─────────────┐
-│    nvim     │  opencode   │
-├─────────────┼─────────────┤
-│npm run dev │npm test w/ │
-└─────────────┴─────────────┘
-```
+`install.sh` links `core/nvim/nyancode.lua` into NyanVim's git-ignored `lua/user/plugins/`, so `:NyanUpdate` never touches it.
 
-### Debug Session
-```
-┌─────────────┬─────────────┐
-│    logs    │  terminal  │
-├─────────────┴─────────────┤
-│          nvim           │
-└────────────────────────┘
-```
+| Key | Command |
+|---|---|
+| `<Space>nr` | `:Nyan refactor` (selection or buffer) |
+| `<Space>ne` | `:Nyan explain` |
+| `<Space>nt` | `:Nyan test` |
+| `<Space>nf` | `:Nyan fix <error>` |
+| `<Space>na` | `:Nyan ask <question>` |
+| `<Space>nv` | `:Nyan review` |
+| `<Space>nn` | `:Nyan chat` (opencode in a split) |
 
-### Review Session
-```
-┌─────────────┬─────────────┐
-│    nvim     │  git log    │
-├─────────────┴─────────────┤
-│        opencode         │
-└────────────────────────┘
-```
+Results open in a markdown split, `q` closes.
 
-## Neovim Keymaps
+## Workspaces
 
-| Keymap | Action |
-|-------|--------|
-| `<leader>ai` | Open OpenCode terminal split |
-| `<leader>ar` | Refactor selected code with AI |
-| `<leader>af` | Fix current line error with AI |
-
-### Usage
-
-1. Select code in visual mode
-2. Press `<leader>ar` to refactor
-3. Or put cursor on error line and press `<leader>af`
-
-## AI Workflows
-
-### Refactor
 ```bash
-echo "optimize this function" | inari refactor
+nyan dev           # nvim + opencode + npm run dev + npm test --watch
+nyan debug
+nyan list          # workflows in ./workflows and ~/.nyan-code/workflows
+nyan run <name>
 ```
 
-### Fix
-```bash
-echo "TypeError: undefined" | inari fix
+## Layout
+
+```
+cli/nyan                 CLI entry point
+core/ai/ai.sh            thin wrapper over `opencode run --command nyan-<cmd>`
+core/ai/commands/        nyan-*.md opencode command templates
+core/nvim/nyancode.lua   NyanVim bridge (:Nyan, <Space>n*)
+core/tmux/               tmux workspace scripts
+core/workflow/           YAML workflow runner
+workflows/               built-in workflows
 ```
 
-### Generate
-```bash
-echo "create a react hook" | inari generate
-```
+## Add a command
 
-## YAML Workflows
-
-Located in `~/.inari-code/workflows/`:
-
-```yaml
-name: dev
-description: Development workflow
-
-steps:
-  - name: start_tmux
-    command: tmux new-session -d -s inari-dev
-  
-  - name: open_nvim
-    command: tmux send-keys -t inari-dev "nvim" C-m
-
-ai_usage_points:
-  - tool: opencode refactor
-  - tool: opencode generate
-```
-
-## Requirements
-
-- tmux ≥ 2.9
-- Neovim ≥ 0.9
-- opencode CLI
-
-Install on macOS:
-```bash
-brew install tmux
-brew install nvim
-curl -sSfL https://get.opencode.ai | sh
-```
-
-Install on Linux:
-```bash
-sudo apt install tmux neovim
-curl -sSfL https://get.opencode.ai | sh
-```
-
-## Development Plan
-
-See [DEVELOPMENT.md](docs/DEVELOPMENT.md) for the 6-month roadmap.
-
-## Version History
-
-| Version | Date | Changes |
-|---------|-----|--------|
-| 1.0.0 | 2025-04 | Initial release |
-| 1.1.0 | 2025-04 | Enhanced CLI, review/test workspaces |
-
-## License
-
-MIT
-
----
-
-Built with 🦊 for terminal-based AI development
+1. Create `core/ai/commands/nyan-<name>.md` with `description:` frontmatter. Use `$ARGUMENTS`, `` !`shell` `` and `@file` as in opencode commands.
+2. Add `<name>` to the AI case in `cli/nyan` and to `cmds` in `core/nvim/nyancode.lua`.
+3. Re-run `./install.sh` to link it.

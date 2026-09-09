@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Inari Code - Workflow Executor
+# Nyan Code - Workflow Executor
 # Executes parsed workflow steps
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -183,7 +183,7 @@ case "${1:-}" in
         "$PARSER" validate "$1"
         ;;
     *)
-        echo "Inari Workflow Executor"
+        echo "Nyan Workflow Executor"
         echo ""
         echo "Usage: $0 <command> [options]"
         echo ""

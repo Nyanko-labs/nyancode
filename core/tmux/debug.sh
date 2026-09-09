@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Inari Code - Debug Workspace Session
+# Nyan Code - Debug Workspace Session
 # Starts a debugging tmux session with logs, terminal, and nvim
 
-SESSION="inari-debug"
+SESSION="nyan-debug"
 LAYOUT="${LAYOUT:-even-horizontal}"
 
 start_session() {

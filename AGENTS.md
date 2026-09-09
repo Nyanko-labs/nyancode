@@ -1,11 +1,11 @@
-# AGENTS.md - Inari Code Development Guide
+# AGENTS.md - Nyan Code Development Guide
 
-This file provides guidelines for agentic coding agents operating in the Inari Code repository.
+This file provides guidelines for agentic coding agents operating in the Nyan Code repository.
 
 ## Project Overview
 
-Inari Code is a modular, terminal-based AI development system integrating tmux, LazyVim, and OpenCode. The project consists of:
-- **CLI** (`cli/inari`) - Bash shell wrapper
+Nyan Code is a modular, terminal-based AI development system integrating tmux, NyanVim, and OpenCode. The project consists of:
+- **CLI** (`cli/nyan`) - Bash shell wrapper
 - **Core scripts** (`core/tmux/*.sh`, `core/ai/ai.sh`) - Tmux workspace and AI wrapper scripts
 - **Workflows** (`workflows/*.yaml`) - YAML workflow definitions
 - **Installer** (`install.sh`) - Bootstrap installer
@@ -17,13 +17,13 @@ This is a pure bash/shell project - no build step required.
 ### Development Commands
 
 ```bash
-# Install Inari Code
+# Install Nyan Code
 ./install.sh install
 
 # Run CLI
-./cli/inari dev          # Start dev workspace
-./cli/inari debug      # Start debug workspace
-./cli/inari status     # Show active sessions
+./cli/nyan dev          # Start dev workspace
+./cli/nyan debug      # Start debug workspace
+./cli/nyan status     # Show active sessions
 
 # Run tmux scripts directly
 ./core/tmux/dev.sh start    # Start dev session
@@ -48,7 +48,7 @@ There are no automated tests in this project. Manual testing:
 
 ```bash
 # Shell script linting (optional)
-shellcheck cli/inari core/tmux/*.sh core/ai/ai.sh install.sh
+shellcheck cli/nyan core/tmux/*.sh core/ai/ai.sh install.sh
 
 # YAML validation (optional)
 yamllint workflows/*.yaml
@@ -72,7 +72,7 @@ command || { echo "Error"; exit 1; }
 ```
 
 **Variable naming:**
-- Uppercase for constants: `INARI_VERSION`, `INSTALL_DIR`
+- Uppercase for constants: `NYAN_VERSION`, `INSTALL_DIR`
 - Lowercase for locals: `session_name`, `prompt_type`
 - Use `_` separator: `PROJECT_DIR`, `SCRIPT_DIR`
 
@@ -155,7 +155,7 @@ ai_usage_points:
 
 **Directory structure:**
 ```
-cli/inari           # CLI entry point
+cli/nyan           # CLI entry point
 core/
   tmux/
     dev.sh         # Dev workspace
@@ -164,7 +164,7 @@ core/
     test.sh        # Test workspace
   ai/
     ai.sh          # AI wrapper
-    prompts/       # Prompt templates
+    commands/      # opencode command templates (nyan-*.md)
 workflows/         # YAML workflows
 ```
 
@@ -227,12 +227,12 @@ Required:
 
 1. Create `core/tmux/<name>.sh`
 2. Add executable: `chmod +x core/tmux/<name>.sh`
-3. Add command handler in `cli/inari`
+3. Add the name to the `ask|refactor|...` case in `cli/nyan` and to `cmds` in `core/nvim/nyancode.lua`
 4. Create symlink in `install.sh`
 
 ### Adding a new AI command
 
-1. Add prompt template in `core/ai/prompts/<command>.prompt`
+1. Add a template in `core/ai/commands/nyan-<command>.md` (opencode command format: `$ARGUMENTS`, `!`cmd`` shell output, `@file`)
 2. Add case handler in `core/ai/ai.sh`
 
 ### Adding a workflow
@@ -243,7 +243,7 @@ Required:
 
 ## Configuration
 
-Project config stored at: `~/.inari-code/config.sh`
+Project config stored at: `~/.nyan-code/config.sh`
 
 ```bash
 PROJECT_DIR="$HOME/projects"
@@ -252,6 +252,6 @@ PROJECT_DIR="$HOME/projects"
 ## Notes
 
 - This is a bash-first project with no build system
-- Installer generates user config in `$HOME/.inari-code`
+- Installer generates user config in `$HOME/.nyan-code`
 - All scripts should be POSIX-compatible where possible
 - CI runs via GitHub Actions (see `.github/workflows/ci.yml`)

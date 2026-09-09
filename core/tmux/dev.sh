@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Inari Code - Dev Workspace Session
+# Nyan Code - Dev Workspace Session
 # Starts a development tmux session with nvim, opencode, dev server, and tests
 
-SESSION="inari-dev"
+SESSION="nyan-dev"
 LAYOUT="${LAYOUT:-even-horizontal}"
 
 start_session() {

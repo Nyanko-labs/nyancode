@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Inari Code - YAML Workflow Parser
+# Nyan Code - YAML Workflow Parser
 # Parses workflow YAML files and outputs JSON for execution
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKFLOW_DIR="${SCRIPT_DIR}/../../workflows"
-USER_WORKFLOW_DIR="${HOME}/.inari-code/workflows"
+USER_WORKFLOW_DIR="${HOME}/.nyan-code/workflows"
 
 parse_yaml_value() {
     local file="$1"

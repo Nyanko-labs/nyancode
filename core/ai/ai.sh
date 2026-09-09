@@ -1,39 +1,55 @@
 #!/usr/bin/env bash
-# AI Wrapper Script for Inari Code
+# Nyan Code AI wrapper: thin layer over `opencode run`.
+# Prompt templates live in core/ai/commands/*.md (opencode custom commands),
+# linked into ~/.config/opencode/commands by install.sh.
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROMPT_DIR="$SCRIPT_DIR/prompts"
+NYAN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+COMMAND_DIR="$NYAN_ROOT/core/ai/commands"
+NYAN_PORT="${NYAN_PORT:-4096}"
 
-run_ai() {
-    local prompt_type="$1"
-    local prompt_file="$PROMPT_DIR/${prompt_type}.prompt"
-    local input="$2"
-    
-    if [[ ! -f "$prompt_file" ]]; then
-        echo "Error: Prompt template '$prompt_type' not found" >&2
-        exit 1
-    fi
-    
-    if command -v opencode &>/dev/null; then
-        echo "$input" | opencode --prompt "@$prompt_file"
-    else
-        echo "Error: opencode not installed" >&2
-        exit 1
-    fi
+usage() {
+    echo "Usage: nyan ai <command> [-m provider/model] [-f file]... [--json] [--continue] [text]"
+    echo "       (text is also read from stdin when piped)"
+    echo "Commands:"
+    for f in "$COMMAND_DIR"/nyan-*.md; do
+        local n; n="$(basename "$f" .md)"
+        printf "  %-10s %s\n" "${n#nyan-}" "$(sed -n 's/^description: //p' "$f")"
+    done
+    echo "  ask        free-form prompt (no template)"
 }
 
-case "${1:-}" in
-    refactor)
-        run_ai refactor "$2"
-        ;;
-    fix)
-        run_ai fix "$2"
-        ;;
-    generate)
-        run_ai generate "$2"
-        ;;
+[[ $# -lt 1 ]] && { usage; exit 1; }
+cmd="$1"; shift
+
+opts=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -m|--model) opts+=(--model "$2"); shift 2 ;;
+        -f|--file)  opts+=(--file "$2"); shift 2 ;;
+        --json)     opts+=(--format json); shift ;;
+        -c|--continue) opts+=(--continue); shift ;;
+        --) shift; break ;;
+        *) break ;;
+    esac
+done
+
+input="$*"
+[[ ! -t 0 ]] && input+="${input:+$'\n\n'}$(cat)"
+
+# reuse a running `nyan serve` so sessions/history are shared with the TUI
+if curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" 2>/dev/null; then
+    opts+=(--attach "http://127.0.0.1:$NYAN_PORT")
+fi
+
+command -v opencode >/dev/null || { echo "opencode not installed: https://opencode.ai" >&2; exit 1; }
+
+case "$cmd" in
+    ask)
+        [[ -z "$input" ]] && { echo "nothing to ask" >&2; exit 1; }
+        exec opencode run "${opts[@]}" -- "$input" ;;
+    help|-h|--help) usage ;;
     *)
-        echo "Usage: $0 {refactor|fix|generate} <input>"
-        exit 1
-        ;;
+        [[ -f "$COMMAND_DIR/nyan-$cmd.md" ]] || { echo "unknown command: $cmd" >&2; usage; exit 1; }
+        exec opencode run "${opts[@]}" --command "nyan-$cmd" -- "$input" ;;
 esac

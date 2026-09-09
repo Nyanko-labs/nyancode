@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# Nyan Code CLI: NyanVim + tmux + opencode in one command.
+set -euo pipefail
+
+NYAN_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+TMUX_DIR="$NYAN_ROOT/core/tmux"
+AI="$NYAN_ROOT/core/ai/ai.sh"
+WORKFLOW="$NYAN_ROOT/core/workflow/execute.sh"
+NYAN_PORT="${NYAN_PORT:-4096}"
+NVIM_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+
+show_help() {
+    cat <<H
+Nyan Code - terminal AI development system (NyanVim + tmux + opencode)
+
+Usage: nyan <command> [args]
+
+AI (pipe text in, or pass it as args; -f file, -m provider/model, --json):
+    ask <text>       free-form prompt
+    refactor         refactor code, behaviour unchanged
+    fix              root-cause fix for an error
+    generate <desc>  generate code
+    explain          explain code
+    test             write tests
+    review           review uncommitted diff
+    commit           write commit message for staged changes (nyan commit -a to commit)
+    chat             open opencode TUI
+    serve            start opencode server on :$NYAN_PORT (shared sessions)
+
+Workspace:
+    dev | debug      tmux workspace
+    run <workflow>   run a workflow      list / workflow show <name>
+    nvim [args]      open NyanVim        nvim update | nvim install
+    doctor           check dependencies
+
+Examples:
+    nyan ask "what does core/ai/ai.sh do"
+    git diff | nyan review
+    nyan explain -f src/app.ts
+    nyan fix "TypeError: x is undefined" -f src/x.ts
+    nyan commit -a
+H
+}
+
+case "${1:-help}" in
+    ask|refactor|fix|generate|explain|test|review)
+        exec "$AI" "$@" ;;
+    commit)
+        shift
+        msg="$("$AI" commit)"
+        if [[ "${1:-}" == "-a" ]]; then git commit -F - <<<"$msg"; else echo "$msg"; fi ;;
+    chat)   shift; exec opencode "$@" ;;
+    serve)  shift; exec opencode serve --port "$NYAN_PORT" "$@" ;;
+    dev|debug)
+        exec "$TMUX_DIR/$1.sh" start ;;
+    run)    shift; exec "$WORKFLOW" run "$@" ;;
+    list)   exec "$WORKFLOW" list ;;
+    workflow)
+        shift; sub="${1:-show}"; [[ "$sub" == validate || "$sub" == show ]] && shift
+        exec "$WORKFLOW" "$sub" "$@" ;;
+    nvim)
+        shift
+        case "${1:-}" in
+            install) exec bash -c "$(curl -fsSL https://raw.githubusercontent.com/Nyanko-labs/NyanVim/main/install.sh)" ;;
+            update)  exec nvim --headless "+NyanUpdate" "+qa" ;;
+            *)       exec nvim "$@" ;;
+        esac ;;
+    doctor)
+        for d in tmux nvim opencode git curl; do
+            command -v "$d" >/dev/null && echo "ok   $d" || echo "MISS $d"
+        done
+        [[ -f "$NVIM_CONFIG/lua/nyanvim/init.lua" ]] && echo "ok   NyanVim ($NVIM_CONFIG)" || echo "MISS NyanVim: run 'nyan nvim install'"
+        [[ -e "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/commands/nyan-fix.md" ]] && echo "ok   opencode commands" || echo "MISS opencode commands: run install.sh"
+        curl -sf -o /dev/null "http://127.0.0.1:$NYAN_PORT/global/health" && echo "ok   nyan serve on :$NYAN_PORT" || echo "info nyan serve not running (optional)" ;;
+    help|--help|-h) show_help ;;
+    *) echo "Unknown command: $1" >&2; show_help; exit 1 ;;
+esac

@@ -1,9 +1,9 @@
-# INARI CODE Development Plan
+# NYAN CODE Development Plan
 
 ## Version 1.0 - Foundation (Month 1-2)
 
 ### Goals
-- [x] Core installer with tmux, LazyVim, OpenCode integration
+- [x] Core installer with tmux, NyanVim, OpenCode integration
 - [x] Basic workspaces: dev, debug, review, test
 - [x] CLI with basic commands
 - [x] AI keymaps for refactor/fix
@@ -12,7 +12,7 @@
 | Week | Task | Status |
 |------|------|--------|
 | 1-2 | Bootstrap installer, tmux scripts | Done |
-| 3-4 | LazyVim keymaps, CLI commands | Done |
+| 3-4 | NyanVim keymaps, CLI commands | Done |
 | 5-6 | AI prompts, workflows | Done |
 | 7-8 | Test, debug sessions | Done |
 
@@ -27,9 +27,9 @@
 
 ### New Features
 ```
-inari status          # Show active sessions
-inari config         # Show/set configuration
-inari list          # List workflows
+nyan status          # Show active sessions
+nyan config         # Show/set configuration
+nyan list          # List workflows
 ```
 
 ---
@@ -42,8 +42,8 @@ inari list          # List workflows
 - [ ] Custom workflow support
 
 ### Features
-- Run workflows via `inari run <workflow>`
-- Define custom workflows in `~/.inari-code/workflows/`
+- Run workflows via `nyan run <workflow>`
+- Define custom workflows in `~/.nyan-code/workflows/`
 - AI usage points in workflows
 
 ### Timeline
